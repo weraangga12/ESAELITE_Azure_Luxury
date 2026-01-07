@@ -1,0 +1,7 @@
+{
+  "name": "ESA CANTIK - Luxury Beauty Shop",
+  "description": "A stunning and premium e-commerce platform for beauty and skincare, featuring an AI-powered beauty consultant.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
