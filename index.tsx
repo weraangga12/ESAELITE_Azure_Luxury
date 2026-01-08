@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
@@ -17,45 +16,45 @@ import {
   CheckCircle2,
   Sparkles
 } from 'lucide-react';
-import { GoogleGenAI, Chat } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { PRODUCTS } from './constants';
 import { Product, CartItem, Message } from './types';
 
-const App = () => {
+const App: React.FC = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [category, setCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   
-  // AI Chat State
   const [chatMessages, setChatMessages] = useState<Message[]>([
     { role: 'model', text: 'Halo Cantik! Selamat datang di ESA CANTIK. Saya asisten kecantikan pribadi Anda. Ada yang bisa saya bantu hari ini? Ingin rekomendasi produk atau tips perawatan kulit?' }
   ]);
   const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const chatInstance = useRef<Chat | null>(null);
+  const chatInstance = useRef<any>(null);
 
   const categories = ['All', 'Skincare', 'Makeup', 'Fragrance', 'Haircare'];
 
   // Initialize AI Chat
   useEffect(() => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    chatInstance.current = ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      config: {
-        systemInstruction: `Anda adalah 'Esa Beauty Expert', asisten virtual untuk toko online kecantikan 'ESA CANTIK'. 
-        Tugas Anda:
-        1. Memberikan saran kecantikan profesional (skincare, makeup, fragrance, hair care).
-        2. Gunakan gaya bahasa yang ramah, sopan, dan elegan. Sering-seringlah memanggil pengguna dengan sebutan 'Cantik', 'Kakak', atau 'Sista'.
-        3. Rekomendasikan produk berdasarkan katalog ESA CANTIK (Skincare, Makeup, Fragrance, Haircare).
-        4. Berikan tips kecantikan yang edukatif dan praktis.
-        5. Jika ditanya harga, informasikan bahwa detail lengkap ada di katalog kami.`,
-      },
-    });
+    try {
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) return;
+      
+      const ai = new GoogleGenAI({ apiKey });
+      chatInstance.current = ai.chats.create({
+        model: 'gemini-3-flash-preview',
+        config: {
+          systemInstruction: 'Anda adalah "Esa Beauty Expert", asisten virtual profesional untuk toko online ESA CANTIK. Gunakan gaya bahasa yang elegan, feminin, dan sangat ramah. Panggil pengguna dengan sebutan "Cantik", "Kakak", atau "Sista". Fokus pada rekomendasi produk kecantikan dan tips perawatan diri.',
+        },
+      });
+    } catch (err) {
+      console.error("AI Initialization Error:", err);
+    }
   }, []);
 
   useEffect(() => {
@@ -86,15 +85,16 @@ const App = () => {
   const cartTotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
 
   const filteredProducts = useMemo(() => {
-    let result = category === 'All' ? PRODUCTS : PRODUCTS.filter(p => p.category === category);
-    if (searchQuery) {
+    let result = activeCategory === 'All' ? PRODUCTS : PRODUCTS.filter(p => p.category === activeCategory);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
       result = result.filter(p => 
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        p.description.toLowerCase().includes(searchQuery.toLowerCase())
+        p.name.toLowerCase().includes(q) || 
+        p.description.toLowerCase().includes(q)
       );
     }
     return result;
-  }, [category, searchQuery]);
+  }, [activeCategory, searchQuery]);
 
   const handleSendMessage = async () => {
     if (!userInput.trim() || isTyping || !chatInstance.current) return;
@@ -105,19 +105,19 @@ const App = () => {
     setIsTyping(true);
 
     try {
-      const result = await chatInstance.current.sendMessage({ message: userMsg });
-      if (result.text) {
-        setChatMessages(prev => [...prev, { role: 'model', text: result.text }]);
+      const response = await chatInstance.current.sendMessage({ message: userMsg });
+      if (response && response.text) {
+        setChatMessages(prev => [...prev, { role: 'model', text: response.text }]);
       }
     } catch (error) {
-      console.error("AI Error:", error);
-      setChatMessages(prev => [...prev, { role: 'model', text: "Maaf Cantik, ada sedikit gangguan teknis. Bisa Anda ulangi pertanyaannya?" }]);
+      console.error("Chat Error:", error);
+      setChatMessages(prev => [...prev, { role: 'model', text: "Maaf Cantik, ada sedikit gangguan teknis. Coba tanya lagi ya?" }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const processCheckout = () => {
+  const handleCheckout = () => {
     setIsCheckingOut(true);
     setTimeout(() => {
       setIsCheckingOut(false);
@@ -129,29 +129,33 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative">
-      {/* Success Notification */}
+    <div className="min-h-screen flex flex-col bg-[#fffafb] selection:bg-pink-100 selection:text-pink-600">
       {showOrderSuccess && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-green-500 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-bounce">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-pink-600 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-bounce">
           <CheckCircle2 className="w-6 h-6" />
-          <span className="font-bold">Pesanan Anda telah diterima! Terima kasih telah mempercayai ESA CANTIK.</span>
+          <span className="font-bold">Pesanan Cantik sudah kami terima!</span>
         </div>
       )}
 
       {/* Navigation */}
       <nav className="sticky top-0 z-50 glass border-b border-pink-100 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Menu className="lg:hidden text-gray-600 cursor-pointer" />
+          <Menu className="lg:hidden text-pink-400 cursor-pointer" />
           <h1 className="text-2xl lg:text-3xl font-serif font-black tracking-tighter text-pink-500">
-            ESA <span className="font-light italic text-gray-900 tracking-widest">CANTIK</span>
+            ESA <span className="font-light italic text-gray-800 tracking-widest uppercase">Cantik</span>
           </h1>
         </div>
 
-        <div className="hidden lg:flex gap-10 font-bold text-[10px] uppercase tracking-[0.3em] text-gray-400">
-          <a href="#" className="text-pink-500 border-b-2 border-pink-500 pb-1">Home</a>
-          <a href="#" className="hover:text-pink-500 transition-colors">Catalog</a>
-          <a href="#" className="hover:text-pink-500 transition-colors">Best Sellers</a>
-          <a href="#" className="hover:text-pink-500 transition-colors">About Us</a>
+        <div className="hidden lg:flex gap-8 font-bold text-[10px] uppercase tracking-[0.2em] text-gray-400">
+          {categories.map(cat => (
+            <button 
+              key={cat} 
+              onClick={() => setActiveCategory(cat)}
+              className={`${activeCategory === cat ? 'text-pink-500 border-b-2 border-pink-500' : 'hover:text-pink-300'} pb-1 transition-all`}
+            >
+              {cat === 'All' ? 'Beranda' : cat}
+            </button>
+          ))}
         </div>
 
         <div className="flex items-center gap-6">
@@ -161,11 +165,10 @@ const App = () => {
               placeholder="Cari kecantikan..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/50 border border-pink-100 rounded-full pl-10 pr-4 py-2 text-sm w-48 focus:w-64 transition-all focus:ring-1 focus:ring-pink-300 outline-none"
+              className="bg-white border border-pink-50 rounded-full pl-10 pr-4 py-2 text-sm w-48 focus:w-64 transition-all focus:ring-1 focus:ring-pink-200 outline-none"
             />
-            <Search className="w-4 h-4 text-pink-300 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-pink-200 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
-          <User className="w-5 h-5 text-gray-700 hover:text-pink-500 transition-colors cursor-pointer" />
           <div className="relative cursor-pointer group" onClick={() => setIsCartOpen(true)}>
             <ShoppingBag className="w-5 h-5 text-gray-700 group-hover:text-pink-500 transition-colors" />
             {cart.length > 0 && (
@@ -174,183 +177,156 @@ const App = () => {
               </span>
             )}
           </div>
+          <User className="w-5 h-5 text-gray-700 hover:text-pink-500 cursor-pointer hidden md:block" />
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative h-[80vh] flex items-center overflow-hidden bg-pink-50">
-        <div className="absolute inset-0 z-0 opacity-80">
+      <section className="relative h-[60vh] md:h-[70vh] flex items-center overflow-hidden bg-pink-50">
+        <div className="absolute inset-0 z-0 opacity-90">
           <img 
             src="https://images.unsplash.com/photo-1596462502278-27bfad450216?auto=format&fit=crop&q=80&w=2000" 
             className="w-full h-full object-cover"
-            alt="Beauty Banner"
+            alt="Beauty Hero"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-pink-100/90 via-pink-50/20 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-pink-50 via-pink-50/20 to-transparent"></div>
         </div>
         <div className="relative z-10 px-6 lg:px-24 max-w-4xl">
-          <span className="uppercase tracking-[0.4em] text-xs font-bold text-pink-400 mb-4 block animate-slide-up">Premium Beauty Selection</span>
-          <h2 className="text-5xl lg:text-7xl font-serif mb-8 leading-tight animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            Pancarkan <br/> <span className="text-pink-500 italic">Pesona Sejati</span> Anda
+          <span className="uppercase tracking-[0.4em] text-xs font-bold text-pink-400 mb-4 block animate-slide-up">Eksklusif & Mewah</span>
+          <h2 className="text-5xl lg:text-7xl font-serif mb-6 leading-tight animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            Temukan <span className="text-pink-500 italic">Pesona</span><br/>Terbaik Sista
           </h2>
-          <p className="text-lg mb-10 text-gray-600 font-light leading-relaxed max-w-lg animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            Koleksi eksklusif produk perawatan diri yang dirancang khusus untuk menonjolkan kecantikan alami setiap wanita.
+          <p className="text-lg mb-8 text-gray-600 font-light leading-relaxed max-w-lg animate-slide-up" style={{ animationDelay: '0.4s' }}>
+            Kurasi produk kecantikan premium yang dirancang untuk menonjolkan kecantikan alami Sista setiap hari.
           </p>
-          <div className="flex gap-4 animate-slide-up" style={{ animationDelay: '0.6s' }}>
-            <button className="bg-pink-500 text-white px-10 py-4 font-bold rounded-full hover:bg-pink-600 transition-all shadow-xl shadow-pink-200">
-              Mulai Belanja
-            </button>
-            <button className="bg-white text-pink-500 px-10 py-4 font-bold rounded-full border border-pink-100 hover:bg-pink-50 transition-all">
-              Promo Spesial
-            </button>
-          </div>
+          <button className="bg-pink-500 text-white px-10 py-4 font-bold rounded-full hover:bg-pink-600 transition-all shadow-xl shadow-pink-100 animate-slide-up" style={{ animationDelay: '0.6s' }}>
+            Jelajahi Koleksi
+          </button>
         </div>
       </section>
 
-      {/* Main Catalog */}
+      {/* Product Section */}
       <main className="flex-1 max-w-7xl mx-auto px-6 py-20 w-full">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-8">
-          <div>
-            <h3 className="text-4xl font-serif mb-4">Koleksi Terkurasi</h3>
-            <p className="text-gray-400">Pilihan produk terbaik untuk perawatan harian Anda.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${
-                  category === cat 
-                  ? 'bg-pink-500 text-white shadow-lg' 
-                  : 'bg-white text-gray-400 border border-gray-100 hover:border-pink-200 hover:text-pink-400'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        <div className="flex flex-col md:flex-row items-center justify-between mb-12 border-b border-pink-50 pb-8">
+          <h3 className="text-3xl font-serif text-gray-900 mb-4 md:mb-0">Pilihan <span className="italic text-pink-500">Istimewa</span></h3>
+          <div className="flex items-center gap-3 text-xs font-bold text-pink-400 uppercase tracking-widest bg-pink-50 px-6 py-2 rounded-full">
+            <Sparkles className="w-4 h-4" />
+            <span>Gratis Ongkir Seluruh Indonesia</span>
           </div>
         </div>
 
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {filteredProducts.map(product => (
-              <div key={product.id} className="group flex flex-col">
-                <div className="relative overflow-hidden rounded-[2.5rem] bg-pink-50/30 aspect-[4/5] mb-6 shadow-sm group-hover:shadow-xl transition-all duration-500">
+              <div key={product.id} className="group flex flex-col bg-white rounded-[2.5rem] p-4 border border-pink-50 hover:shadow-2xl transition-all duration-500">
+                <div className="relative overflow-hidden rounded-[2rem] aspect-[4/5] mb-4">
                   <img 
                     src={product.image} 
                     alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                   {product.isFeatured && (
-                    <span className="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-pink-500 shadow-sm">
+                    <div className="absolute top-4 left-4 bg-pink-500 text-white px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-md">
                       Best Seller
-                    </span>
+                    </div>
                   )}
                   <button 
                     onClick={() => addToCart(product)}
-                    className="absolute bottom-6 left-6 right-6 bg-white/90 backdrop-blur-md text-pink-500 py-4 rounded-3xl font-bold translate-y-20 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500 hover:bg-pink-500 hover:text-white flex items-center justify-center gap-2"
+                    className="absolute bottom-4 left-4 right-4 bg-white/95 backdrop-blur text-pink-500 py-3 rounded-2xl font-bold opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500 flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-4 h-4" /> Tambah Keranjang
+                    <Plus className="w-4 h-4" /> Tambah
                   </button>
                 </div>
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] uppercase text-pink-300 font-black tracking-widest">{product.category}</span>
+                <div className="flex-1 px-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-bold text-pink-300 uppercase tracking-widest">{product.category}</span>
                     <div className="flex items-center gap-1">
                       <Star className="w-3 h-3 fill-pink-500 text-pink-500" />
-                      <span className="text-xs font-bold">{product.rating}</span>
+                      <span className="text-[10px] font-bold">{product.rating}</span>
                     </div>
                   </div>
-                  <h4 className="font-serif text-xl text-gray-900 mb-1 group-hover:text-pink-500 transition-colors">{product.name}</h4>
-                  <p className="text-sm text-gray-400 font-light mb-4 line-clamp-1">{product.description}</p>
-                  <p className="text-xl font-black text-gray-900">Rp {(product.price / 1000).toLocaleString()}k</p>
+                  <h4 className="font-serif text-lg text-gray-900 mb-1 leading-tight group-hover:text-pink-500 transition-colors">{product.name}</h4>
+                  <p className="text-pink-600 font-black">Rp {(product.price / 1000).toLocaleString()}k</p>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="py-20 text-center">
-            <h4 className="text-xl font-serif text-gray-400">Oops! Produk yang Anda cari belum tersedia.</h4>
-            <button onClick={() => {setSearchQuery(''); setCategory('All');}} className="mt-4 text-pink-500 underline font-bold">Lihat Semua Koleksi</button>
+          <div className="py-24 text-center">
+            <Search className="w-12 h-12 text-pink-100 mx-auto mb-4" />
+            <h4 className="text-xl font-serif text-gray-300 italic">Produk yang Sista cari belum tersedia...</h4>
+            <button 
+              onClick={() => {setSearchQuery(''); setActiveCategory('All');}} 
+              className="mt-6 text-pink-500 font-bold underline hover:text-pink-600 transition-colors"
+            >
+              Lihat Semua Produk
+            </button>
           </div>
         )}
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-pink-50 py-20 px-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16">
+      <footer className="bg-white border-t border-pink-50 py-16 px-6 mt-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-center md:text-left">
           <div className="col-span-1 md:col-span-1">
-            <h4 className="text-2xl font-serif font-bold mb-8 text-pink-500 italic">ESA CANTIK</h4>
-            <p className="text-gray-400 text-sm leading-relaxed mb-8">
-              Destinasi kecantikan nomor satu untuk wanita Indonesia yang menghargai kualitas dan kemewahan dalam setiap sentuhan.
+            <h4 className="text-2xl font-serif font-bold text-pink-500 mb-6 italic">ESA CANTIK</h4>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Mewujudkan kilau alami Sista melalui produk kecantikan pilihan terbaik di Indonesia.
             </p>
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-400 cursor-pointer hover:bg-pink-500 hover:text-white transition-all">IG</div>
-              <div className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-400 cursor-pointer hover:bg-pink-500 hover:text-white transition-all">TT</div>
-              <div className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-400 cursor-pointer hover:bg-pink-500 hover:text-white transition-all">FB</div>
-            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h5 className="font-bold text-xs uppercase tracking-widest mb-2 text-gray-900">Belanja</h5>
+            <a href="#" className="text-sm text-gray-400 hover:text-pink-500 transition-colors">Skincare</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-pink-500 transition-colors">Makeup</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-pink-500 transition-colors">Parfum</a>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h5 className="font-bold text-xs uppercase tracking-widest mb-2 text-gray-900">Bantuan</h5>
+            <a href="#" className="text-sm text-gray-400 hover:text-pink-500 transition-colors">Hubungi Kami</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-pink-500 transition-colors">Pengiriman</a>
+            <a href="#" className="text-sm text-gray-400 hover:text-pink-500 transition-colors">Lacak Pesanan</a>
           </div>
           <div>
-            <h5 className="font-bold text-xs uppercase tracking-[0.2em] mb-8 text-gray-900">Shopping</h5>
-            <ul className="space-y-4 text-sm text-gray-400 font-light">
-              <li><a href="#" className="hover:text-pink-500">Skincare</a></li>
-              <li><a href="#" className="hover:text-pink-500">Makeup</a></li>
-              <li><a href="#" className="hover:text-pink-500">Best Seller</a></li>
-              <li><a href="#" className="hover:text-pink-500">New Arrivals</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="font-bold text-xs uppercase tracking-[0.2em] mb-8 text-gray-900">Service</h5>
-            <ul className="space-y-4 text-sm text-gray-400 font-light">
-              <li><a href="#" className="hover:text-pink-500">Shipping Info</a></li>
-              <li><a href="#" className="hover:text-pink-500">Returns</a></li>
-              <li><a href="#" className="hover:text-pink-500">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-pink-500">FAQ</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="font-bold text-xs uppercase tracking-[0.2em] mb-8 text-gray-900">Newsletter</h5>
-            <p className="text-xs text-gray-400 mb-6">Dapatkan penawaran eksklusif dan tips kecantikan langsung di inbox Anda.</p>
-            <div className="flex gap-2 p-1 border border-pink-100 rounded-full">
-              <input type="email" placeholder="Email Anda" className="bg-transparent border-none px-4 py-2 flex-1 text-xs outline-none" />
-              <button className="bg-pink-500 text-white p-2 rounded-full hover:bg-pink-600 transition-colors">
+            <h5 className="font-bold text-xs uppercase tracking-widest mb-4 text-gray-900">Newsletter</h5>
+            <div className="flex p-1 bg-pink-50 rounded-full">
+              <input type="email" placeholder="Email Cantik" className="bg-transparent border-none px-4 py-2 flex-1 text-xs outline-none" />
+              <button className="bg-pink-500 text-white p-2 rounded-full hover:bg-pink-600 transition-colors shadow-lg">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto border-t border-pink-50 mt-20 pt-10 text-center text-[10px] text-gray-300 uppercase tracking-widest font-bold">
-          © 2024 ESA CANTIK. Elegansi dalam Setiap Sentuhan.
+        <div className="max-w-7xl mx-auto border-t border-pink-50 mt-16 pt-10 text-center text-[10px] text-gray-300 uppercase tracking-[0.3em] font-bold">
+          © 2024 ESA CANTIK. Elegansi dalam setiap sentuhan.
         </div>
       </footer>
 
       {/* Cart Drawer */}
       {isCartOpen && (
         <div className="fixed inset-0 z-[100] flex justify-end">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" onClick={() => setIsCartOpen(false)}></div>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
           <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-left">
             <div className="p-8 border-b border-pink-50 flex items-center justify-between">
-              <h3 className="text-2xl font-serif font-bold">Tas Belanja</h3>
-              <X className="w-6 h-6 text-gray-400 cursor-pointer hover:text-pink-500" onClick={() => setIsCartOpen(false)} />
+              <h3 className="text-2xl font-serif font-bold text-pink-500">Tas Belanja</h3>
+              <X className="w-6 h-6 text-gray-300 cursor-pointer hover:text-pink-500 transition-colors" onClick={() => setIsCartOpen(false)} />
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {cart.length === 0 ? (
-                <div className="text-center py-20">
-                  <ShoppingBag className="w-16 h-16 text-pink-100 mx-auto mb-6" />
-                  <p className="text-gray-400 font-serif text-xl italic">Tas Anda masih sepi...</p>
+                <div className="text-center py-20 opacity-30">
+                  <ShoppingBag className="w-16 h-16 mx-auto mb-4" />
+                  <p className="font-serif italic text-xl">Tas Sista masih kosong...</p>
                 </div>
               ) : (
                 cart.map(item => (
-                  <div key={item.id} className="flex gap-6 items-center">
+                  <div key={item.id} className="flex gap-4 items-center group">
                     <img src={item.image} className="w-20 h-24 object-cover rounded-2xl" alt={item.name} />
                     <div className="flex-1">
-                      <h5 className="font-bold text-gray-900">{item.name}</h5>
-                      <p className="text-pink-500 font-bold text-sm">Rp {(item.price / 1000).toLocaleString()}k</p>
-                      <div className="flex items-center gap-4 mt-4">
-                        <div className="flex items-center bg-pink-50 rounded-full px-2 py-1">
-                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1 text-pink-500 hover:bg-white rounded-full"><Minus className="w-3 h-3" /></button>
-                          <span className="w-8 text-center text-xs font-bold text-gray-700">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1 text-pink-500 hover:bg-white rounded-full"><Plus className="w-3 h-3" /></button>
-                        </div>
+                      <h5 className="font-bold text-sm leading-tight group-hover:text-pink-500 transition-colors">{item.name}</h5>
+                      <p className="text-pink-500 font-bold text-xs mt-1">Rp {(item.price / 1000).toLocaleString()}k</p>
+                      <div className="flex items-center gap-3 mt-4">
+                        <button onClick={() => updateQuantity(item.id, -1)} className="w-7 h-7 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center hover:bg-pink-500 hover:text-white transition-all"><Minus className="w-3 h-3" /></button>
+                        <span className="text-xs font-bold w-6 text-center">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, 1)} className="w-7 h-7 rounded-full bg-pink-50 text-pink-500 flex items-center justify-center hover:bg-pink-500 hover:text-white transition-all"><Plus className="w-3 h-3" /></button>
                       </div>
                     </div>
                     <button onClick={() => updateQuantity(item.id, -item.quantity)} className="text-gray-200 hover:text-red-400 transition-colors">
@@ -361,17 +337,17 @@ const App = () => {
               )}
             </div>
             {cart.length > 0 && (
-              <div className="p-8 bg-pink-50 border-t border-pink-100">
-                <div className="flex justify-between items-center mb-8">
-                  <span className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Total Pembayaran</span>
+              <div className="p-8 bg-pink-50/50 border-t border-pink-100">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Subtotal</span>
                   <span className="text-2xl font-black text-gray-900">Rp {cartTotal.toLocaleString()}</span>
                 </div>
                 <button 
-                  onClick={processCheckout}
+                  onClick={handleCheckout}
                   disabled={isCheckingOut}
-                  className="w-full bg-pink-500 text-white py-5 rounded-3xl font-bold hover:bg-pink-600 transition-all shadow-xl shadow-pink-200 flex items-center justify-center gap-3 disabled:bg-gray-400"
+                  className="w-full bg-pink-500 text-white py-5 rounded-3xl font-bold hover:bg-pink-600 transition-all shadow-xl shadow-pink-100 flex items-center justify-center gap-3"
                 >
-                  {isCheckingOut ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <>Checkout Sekarang <ChevronRight className="w-4 h-4" /></>}
+                  {isCheckingOut ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Selesaikan Pesanan"}
                 </button>
               </div>
             )}
@@ -379,39 +355,33 @@ const App = () => {
         </div>
       )}
 
-      {/* AI Assistant Button */}
-      <div className="fixed bottom-10 right-10 z-[100] flex flex-col items-end gap-4">
+      {/* AI Assistant */}
+      <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end gap-3">
         {!isChatOpen && (
-          <div className="bg-white px-4 py-2 rounded-2xl shadow-xl border border-pink-100 text-[10px] font-bold text-pink-400 animate-bounce cursor-pointer" onClick={() => setIsChatOpen(true)}>
-            Butuh tips kecantikan? ✨
+          <div className="bg-white px-5 py-2.5 rounded-2xl shadow-2xl border border-pink-100 text-[10px] font-black text-pink-500 animate-bounce cursor-pointer flex items-center gap-2" onClick={() => setIsChatOpen(true)}>
+            <Sparkles className="w-3 h-3" /> Konsultasi Sista?
           </div>
         )}
         <button 
           onClick={() => setIsChatOpen(!isChatOpen)}
-          className="w-16 h-16 bg-pink-500 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform active:scale-95 group relative"
+          className="w-16 h-16 bg-pink-500 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform relative group"
         >
           <div className="absolute inset-0 bg-pink-400 rounded-full animate-ping opacity-20"></div>
           {isChatOpen ? <X className="w-7 h-7" /> : <MessageCircle className="w-7 h-7" />}
         </button>
       </div>
 
-      {/* AI Chat Window */}
       {isChatOpen && (
-        <div className="fixed bottom-28 right-10 z-[100] w-[90vw] max-w-[400px] h-[550px] bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] border border-pink-50 flex flex-col overflow-hidden animate-slide-up">
+        <div className="fixed bottom-28 right-8 z-[100] w-[90vw] max-w-[380px] h-[550px] bg-white rounded-[3rem] shadow-2xl border border-pink-50 flex flex-col overflow-hidden animate-slide-up">
           <div className="bg-pink-500 p-6 text-white flex items-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center border border-white/30">
-              <Sparkles className="w-6 h-6" />
-            </div>
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center border border-white/30"><Sparkles className="w-6 h-6" /></div>
             <div>
-              <p className="font-serif font-bold text-lg">Esa Beauty Expert</p>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                <p className="text-[10px] uppercase tracking-widest font-bold opacity-70">Online Sekarang</p>
-              </div>
+              <p className="font-serif font-bold text-xl leading-none mb-1">Esa Expert</p>
+              <p className="text-[10px] uppercase tracking-widest opacity-80 font-bold">Siap Melayani Cantik</p>
             </div>
-            <button onClick={() => setIsChatOpen(false)} className="ml-auto opacity-50 hover:opacity-100"><X className="w-5 h-5" /></button>
+            <button onClick={() => setIsChatOpen(false)} className="ml-auto opacity-50 hover:opacity-100 transition-opacity"><X className="w-5 h-5" /></button>
           </div>
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/50">
             {chatMessages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] p-4 rounded-3xl text-sm leading-relaxed ${
@@ -425,32 +395,29 @@ const App = () => {
             ))}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="bg-white border border-pink-50 p-4 rounded-3xl rounded-tl-none flex gap-1 animate-pulse">
-                  <div className="w-1.5 h-1.5 bg-pink-200 rounded-full"></div>
+                <div className="bg-white p-4 rounded-3xl rounded-tl-none flex gap-1 animate-pulse border border-pink-50">
                   <div className="w-1.5 h-1.5 bg-pink-300 rounded-full"></div>
                   <div className="w-1.5 h-1.5 bg-pink-400 rounded-full"></div>
+                  <div className="w-1.5 h-1.5 bg-pink-500 rounded-full"></div>
                 </div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
-          <div className="p-6 border-t border-pink-50 bg-white">
-            <div className="flex items-center gap-2 bg-pink-50/50 rounded-full px-4 py-1.5">
-              <input 
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Tanyakan rahasia cantik..." 
-                className="flex-1 bg-transparent border-none text-sm outline-none py-2"
-              />
-              <button 
-                onClick={handleSendMessage}
-                disabled={isTyping}
-                className="bg-pink-500 text-white w-10 h-10 rounded-full flex items-center justify-center disabled:opacity-30 hover:shadow-lg transition-all"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
+          <div className="p-5 bg-white border-t border-pink-50 flex gap-3">
+            <input 
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Tanya rahasia cantik..." 
+              className="flex-1 bg-pink-50/50 rounded-full px-5 py-3 text-sm outline-none border border-transparent focus:border-pink-200 transition-all placeholder:text-pink-300"
+            />
+            <button 
+              onClick={handleSendMessage} 
+              className="bg-pink-500 text-white p-3 rounded-full hover:bg-pink-600 transition-colors shadow-lg shadow-pink-100"
+            >
+              <Send className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}
@@ -461,19 +428,21 @@ const App = () => {
           to { transform: translateX(0); }
         }
         .animate-slide-left {
-          animation: slide-left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          animation: slide-left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .glass {
-          background: rgba(255, 255, 255, 0.85);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+        ::-webkit-scrollbar {
+          width: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #f8bbd0;
+          border-radius: 10px;
         }
       `}</style>
     </div>
   );
 };
 
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  createRoot(rootElement).render(<App />);
+const root = document.getElementById('root');
+if (root) {
+  createRoot(root).render(<App />);
 }
