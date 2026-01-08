@@ -26,7 +26,7 @@
             font-family: 'Playfair Display', serif;
         }
         .glass {
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
@@ -38,15 +38,20 @@
             animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         #root:empty::after {
-            content: 'Memuat ESA CANTIK...';
+            content: 'Menyiapkan Kecantikan Sista...';
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             font-family: 'Playfair Display', serif;
             color: #ec407a;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-style: italic;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
         }
     </style>
     <script type="importmap">
